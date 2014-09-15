@@ -36,6 +36,7 @@ from PyQt5.QtWidgets import (QApplication, QComboBox, QDialogButtonBox,
 
 HELP = """<h3>Cuckoo-R</h3><b>QR Code App !</b><br>Version {}, licence {}.
 DEV: <a href=https://github.com/juancarlospaco>juancarlospaco</a><br>
+QC: <a href=https://github.com/gilgamezh>gilgamezh</a><br>
 """.format(__version__, __license__)
 STANDARD_NAMED_COLORS = tuple(sorted(set("""aliceblue antiquewhite azure beige
 bisque blanchedalmond blue blueviolet brown burlywood cadetblue chocolate coral
