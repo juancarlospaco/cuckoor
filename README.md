@@ -17,6 +17,7 @@ wget -O - https://raw.githubusercontent.com/juancarlospaco/cuckoor/master/cuckoo
 
 ```
 sudo apt-get install python3-pyqt5  # OR  sudo yum install python3-qt5  OR  sudo pacman -S python-pyqt5
+sudo pip3 install pillow
 sudo wget -O /usr/bin/cuckoor https://raw.githubusercontent.com/juancarlospaco/cuckoor/master/cuckoor.py
 sudo chmod +x /usr/bin/cuckoor
 cuckoor
