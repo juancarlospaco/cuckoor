@@ -4,9 +4,10 @@
 
 
 # metadata
-""" Cuckoo-R """
+"""Cuckoo-R."""
+__package__ = "cuckoor"
 __version__ = ' 0.0.1 '
-__license__ = ' GPLv3+ '
+__license__ = ' GPLv3+ LGPLv3+ '
 __author__ = ' juancarlos '
 __email__ = ' juancarlospaco@gmail.com '
 __url__ = 'https://github.com/juancarlospaco/octopussh#octopussh'
@@ -18,7 +19,9 @@ __source__ = ('https://raw.githubusercontent.com/juancarlospaco/'
 
 # imports
 import math
+import os
 import sys
+from ctypes import byref, cdll, create_string_buffer
 from getopt import getopt
 from getpass import getuser
 from random import randint
@@ -27,12 +30,12 @@ from urllib import request
 from webbrowser import open_new_tab
 
 from PIL import Image, ImageDraw
+
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import (QApplication, QComboBox, QDialogButtonBox,
                              QFontDialog, QGroupBox, QHBoxLayout, QLabel,
                              QLineEdit, QMainWindow, QMessageBox, QShortcut,
                              QSpinBox, QVBoxLayout, QWidget)
-
 
 HELP = """<h3>Cuckoo-R</h3><b>QR Code App !</b><br>Version {}, licence {}.
 DEV: <a href=https://github.com/juancarlospaco>juancarlospaco</a><br>
@@ -44,20 +47,21 @@ cornflowerblue cornsilk crimson cyan darkblue darkcyan aqua darkgoldenrod black
 darkorange darkorchid darkred darksalmon darkseagreen darkslateblue aquamarine
 darkslategray darkslategrey darkturquoise darkviolet deeppink deepskyblue
 dimgray dimgrey dodgerblue firebrick floralwhite forestgreen fuchsia gainsboro
-ghostwhite gold goldenrod gray green greenyellow grey honeydew hotpink indianred
-indigo ivory khaki lavender lavenderblush lawngreen lemonchiffon lightblue
-lightcoral lightcyan lightgoldenrodyellow lightgray lightgreen lightgrey
-lightpink lightsalmon lightseagreen lightskyblue lightslategray lightslategrey
-lightsteelblue lightyellow lime limegreen linen magenta maroon mediumaquamarine
-mediumblue mediumorchid mediumpurple mediumseagreen mediumslateblue darkgray
-mediumspringgreen mediumturquoise mediumvioletred midnightblue mintcream
-mistyrose moccasin navajowhite navy oldlace olive olivedrab orange orangered
-orchid palegoldenrod palegreen paleturquoise palevioletred papayawhip peachpuff
-peru pink plum powderblue purple red rosybrown royalblue saddlebrown salmon
-sandybrown seagreen seashell sienna silver skyblue slateblue slategray slategrey
-snow springgreen steelblue teal thistle tomato turquoise violet wheat whitesmoke
-yellow yellowgreen darkgrey darkkhaki darkmagenta darkolivegreen white
-""".strip().lower().replace("\n", " ").split(" "))))  # 144 standard color names
+ghostwhite gold goldenrod gray green greenyellow grey honeydew hotpink
+indianred indigo ivory khaki lavender lavenderblush lawngreen lemonchiffon
+lightblue lightcoral lightcyan lightgoldenrodyellow lightgray lightgreen
+lightgrey lightpink lightsalmon lightseagreen lightskyblue lightslategray
+lightslategrey lightsteelblue lightyellow lime limegreen linen magenta maroon
+mediumaquamarine mediumblue mediumorchid mediumpurple mediumseagreen
+mediumslateblue darkgray mediumspringgreen mediumturquoise mediumvioletred
+midnightblue mintcream mistyrose moccasin navajowhite navy oldlace olive
+olivedrab orange orangered orchid palegoldenrod palegreen paleturquoise
+palevioletred papayawhip peachpuff peru pink plum powderblue purple red
+rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna
+silver skyblue slateblue slategray slategrey snow springgreen steelblue teal
+thistle tomato turquoise violet wheat whitesmoke yellow yellowgreen darkgrey
+darkkhaki darkmagenta darkolivegreen white
+""".strip().lower().replace("\n", " ").split(" "))))  # 144 standard color name
 BACKGROUND_COLOR, FOREGROUND_COLOR = "white", "black"
 ERRORCORRECT_LVL, QRCODE_SIZE = 1, 4
 
@@ -66,34 +70,47 @@ ERRORCORRECT_LVL, QRCODE_SIZE = 1, 4
 
 
 class QR8bitByte:
+
+    """QR 8Bit data class."""
+
     def __init__(self, data):
+        """Init class."""
         self.mode, self.data = QRMode.MODE_8BIT_BYTE, data
 
     def getLength(self):
+        """Get lenght of data."""
         return len(self.data)
 
     def write(self, _buffer):
+        """Write the buffer."""
         for i in range(len(self.data)):
             _buffer.put(self.data[i], 8)  # TODO: check this
 
     def __repr__(self):
+        """repr class str."""
         return self.data
 
 
 class QRCode:
+
+    """QR data class."""
+
     PAD0, PAD1 = 0xEC, 0x11
 
     def __init__(self, typeNumber, errorCorrectLevel):
+        """Init class."""
         self.typeNumber, self.errorCorrectLevel = typeNumber, errorCorrectLevel
         self.modules, self.dataCache = None, None
         self.moduleCount, self.dataList = 0, []
 
     def addData(self, data):
+        """Add data into a QR 8bit class."""
         newData = QR8bitByte(data)
         self.dataList.append(newData)
         self.dataCache = None
 
     def isDark(self, row, col):
+        """Return if is Dark or not."""
         conditional1 = self.moduleCount <= row
         conditional2 = self.moduleCount <= col
         if row < 0 or conditional1 or col < 0 or conditional2:
@@ -101,12 +118,15 @@ class QRCode:
         return self.modules[row][col]
 
     def getModuleCount(self):
+        """Return module count integer."""
         return self.moduleCount
 
     def make(self):
+        """Build the QR."""
         self.makeImpl(False, self.getBestMaskPattern())
 
     def makeImpl(self, test, maskPattern):
+        """Make the pattern."""
         self.moduleCount = self.typeNumber * 4 + 17
         self.modules = [None for x in range(self.moduleCount)]
         for row in range(self.moduleCount):
@@ -127,6 +147,7 @@ class QRCode:
         self.mapData(self.dataCache, maskPattern)
 
     def setupPositionProbePattern(self, row, col):
+        """Setup the position of pattern based on row, col."""
         for r in range(-1, 8):
             if row + r <= -1 or self.moduleCount <= row + r:
                 continue
@@ -142,6 +163,7 @@ class QRCode:
                     self.modules[row + r][col + c] = False
 
     def getBestMaskPattern(self):
+        """Get the mask pattern."""
         minLostPoint, pattern = 0, 0
         for i in range(8):
             self.makeImpl(True, i)
@@ -151,6 +173,7 @@ class QRCode:
         return pattern
 
     def makeImage(self):
+        """Make a new image."""
         boxsize, offset = 10, 2
         pixelsize = (self.getModuleCount() + offset + offset) * boxsize
         im = Image.new("RGB", (pixelsize, pixelsize), BACKGROUND_COLOR)
@@ -166,6 +189,7 @@ class QRCode:
         return im
 
     def setupTimingPattern(self):
+        """Set timmings."""
         for r in range(8, self.moduleCount - 8):
             if self.modules[r][6] is not None:
                 continue
@@ -176,6 +200,7 @@ class QRCode:
             self.modules[6][c] = (c % 2 == 0)
 
     def setupPositionAdjustPattern(self):
+        """Adjust position."""
         pos = QRUtil.getPatternPosition(self.typeNumber)
         for i in range(len(pos)):
             for j in range(len(pos)):
@@ -193,6 +218,7 @@ class QRCode:
                             self.modules[row + r][col + c] = False
 
     def setupTypeNumber(self, test):
+        """Set type number."""
         bits = QRUtil.getBCHTypeNumber(self.typeNumber)
         for i in range(18):
             mod = (not test and ((bits >> i) & 1) == 1)
@@ -202,6 +228,7 @@ class QRCode:
             self.modules[i % 3 + self.moduleCount - 8 - 3][i // 3] = mod
 
     def setupTypeInfo(self, test, maskPattern):
+        """Set type info."""
         data = (self.errorCorrectLevel << 3) | maskPattern
         bits = QRUtil.getBCHTypeInfo(data)
         for i in range(15):
@@ -223,6 +250,7 @@ class QRCode:
         self.modules[self.moduleCount - 8][8] = (not test)
 
     def mapData(self, data, maskPattern):
+        """Map data to pattern."""
         inc, bitIndex, byteIndex, row = -1, 7, 0, self.moduleCount - 1
         for col in range(self.moduleCount - 1, 0, -2):
             if col == 6:
@@ -249,6 +277,7 @@ class QRCode:
 
     @staticmethod
     def createData(typeNumber, errorCorrectLevel, dataList):
+        """Create the data."""
         rsBlocks = QRRSBlock.getRSBlocks(typeNumber, errorCorrectLevel)
         _buffer = QRBitBuffer()
         for i in range(len(dataList)):
@@ -278,6 +307,7 @@ class QRCode:
 
     @staticmethod
     def createBytes(_buffer, rsBlocks):
+        """Create the Bytes."""
         offset, maxDcCount, maxEcCount = 0, 0, 0
         dcdata = [0 for x in range(len(rsBlocks))]
         ecdata = [0 for x in range(len(rsBlocks))]
@@ -319,20 +349,32 @@ class QRCode:
 
 
 class QRMode:
+
+    """QR Modes."""
+
     MODE_NUMBER, MODE_ALPHA_NUM = 1 << 0, 1 << 1
     MODE_8BIT_BYTE, MODE_KANJI = 1 << 2, 1 << 3
 
 
 class QRErrorCorrectLevel:
+
+    """QR Error Levels."""
+
     M, L, H, Q = 0, 1, 2, 3
 
 
 class QRMaskPattern:
+
+    """QR Mask Patterns."""
+
     PATTERN000, PATTERN001, PATTERN010, PATTERN011 = 0, 1, 2, 3
     PATTERN100, PATTERN101, PATTERN110, PATTERN111 = 4, 5, 6, 7
 
 
 class QRUtil(object):
+
+    """QR Utilitary class."""
+
     PATTERN_POSITION_TABLE = [
         [],
         [6, 18],
@@ -381,6 +423,7 @@ class QRUtil(object):
 
     @staticmethod
     def getBCHTypeInfo(data):
+        """Get type info."""
         d = data << 10
         while QRUtil.getBCHDigit(d) - QRUtil.getBCHDigit(QRUtil.G15) >= 0:
             d ^= (QRUtil.G15 << (QRUtil.getBCHDigit(d) -
@@ -389,6 +432,7 @@ class QRUtil(object):
 
     @staticmethod
     def getBCHTypeNumber(data):
+        """Get type number."""
         d = data << 12
         while (QRUtil.getBCHDigit(d) - QRUtil.getBCHDigit(QRUtil.G18) >= 0):
             d ^= (QRUtil.G18 << (QRUtil.getBCHDigit(d) -
@@ -397,6 +441,7 @@ class QRUtil(object):
 
     @staticmethod
     def getBCHDigit(data):
+        """Get digit from data."""
         digit = 0
         while data != 0:
             digit += 1
@@ -405,10 +450,12 @@ class QRUtil(object):
 
     @staticmethod
     def getPatternPosition(typeNumber):
+        """Get pattern position from type number."""
         return QRUtil.PATTERN_POSITION_TABLE[typeNumber - 1]
 
     @staticmethod
     def getMask(maskPattern, i, j):
+        """Get the mask pattern."""
         if maskPattern == QRMaskPattern.PATTERN000:
             return (i + j) % 2 == 0
         if maskPattern == QRMaskPattern.PATTERN001:
@@ -429,6 +476,7 @@ class QRUtil(object):
 
     @staticmethod
     def getErrorCorrectPolynomial(errorCorrectLength):
+        """Get error correct levels."""
         a = QRPolynomial([1], 0)
         for i in range(errorCorrectLength):
             a = a.multiply(QRPolynomial([1, QRMath.gexp(i)], 0))
@@ -436,6 +484,7 @@ class QRUtil(object):
 
     @staticmethod
     def getLengthInBits(mode, type):
+        """get len in bytes."""
         if 1 <= type and type < 10:
             if mode == QRMode.MODE_NUMBER:
                 return 10
@@ -471,6 +520,7 @@ class QRUtil(object):
 
     @staticmethod
     def getLostPoint(qrCode):
+        """Get lost point."""
         moduleCount, lostPoint = qrCode.getModuleCount(), 0
         for row in range(moduleCount):
             for col in range(moduleCount):
@@ -532,14 +582,19 @@ class QRUtil(object):
 
 
 class QRMath:
+
+    """QR code Math."""
+
     @staticmethod
     def glog(n):
+        """get log n."""
         if n < 1:
             raise Exception("glog( {} ).".format(n))
         return LOG_TABLE[n]
 
     @staticmethod
     def gexp(n):
+        """Get exp n."""
         while n < 0:
             n += 255
         while n >= 256:
@@ -559,7 +614,11 @@ for i in range(255):
 
 
 class QRPolynomial:
+
+    """QR Polynomial."""
+
     def __init__(self, num, shift):
+        """Init class."""
         if len(num) == 0:
             raise Exception("{} / {}".format(num.length, shift))
         offset = 0
@@ -570,12 +629,15 @@ class QRPolynomial:
             self.num[i] = num[i + offset]
 
     def get(self, index):
+        """Get the index."""
         return self.num[index]
 
     def getLength(self):
+        """Get len of this object."""
         return len(self.num)
 
     def multiply(self, e):
+        """Multiply this QR."""
         num = [0 for x in range(self.getLength() + e.getLength() - 1)]
         for i in range(self.getLength()):
             for j in range(e.getLength()):
@@ -584,6 +646,7 @@ class QRPolynomial:
         return QRPolynomial(num, 0)
 
     def mod(self, e):
+        """Return object."""
         if (self.getLength() - e.getLength() < 0):
             return self
         ratio = QRMath.glog(self.get(0)) - QRMath.glog(e.get(0))
@@ -596,6 +659,9 @@ class QRPolynomial:
 
 
 class QRRSBlock:
+
+    """QR RS Block class."""
+
     RS_BLOCK_TABLE = [
         [1, 26, 19],
         [1, 26, 16],
@@ -760,14 +826,17 @@ class QRRSBlock:
     ]
 
     def __init__(self, totalCount, dataCount):
+        """Init class."""
         self.totalCount, self.dataCount = totalCount, dataCount
 
     @staticmethod
     def getRSBlocks(typeNumber, errorCorrectLevel):
+        """Get the RS Blocks."""
         rsBlock = QRRSBlock.getRsBlockTable(typeNumber, errorCorrectLevel)
         if rsBlock is None:
-            raise Exception("""Bad RS Block @ typeNumber: {} /
-                errorCorrectLevel: {}.""".format(typeNumber, errorCorrectLevel))
+            raise Exception(
+                """Bad RS Block @ typeNumber: {} / errorCorrectLevel: {}.
+                """.format(typeNumber, errorCorrectLevel))
         length = len(rsBlock) / 3
         _list = []
         for i in range(int(length)):
@@ -780,6 +849,7 @@ class QRRSBlock:
 
     @staticmethod
     def getRsBlockTable(typeNumber, errorCorrectLevel):
+        """Get the RS Blocks Table."""
         if errorCorrectLevel == QRErrorCorrectLevel.L:
             return QRRSBlock.RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 0]
         elif errorCorrectLevel == QRErrorCorrectLevel.M:
@@ -793,26 +863,35 @@ class QRRSBlock:
 
 
 class QRBitBuffer:
+
+    """QR Buffer."""
+
     def __init__(self):
+        """Init class."""
         self._buffer, self.length = [], 0
 
     def __repr__(self):
+        """Return repr of this object."""
         return ".".join([str(n) for n in self._buffer])
 
     def get(self, index):
+        """Get from index."""
         bufIndex = math.floor(index / 8)
         val = ((self._buffer[bufIndex] >> (7 - index % 8)) & 1) == 1
         print(("get ", val))
         return ((self._buffer[bufIndex] >> (7 - index % 8)) & 1) == 1
 
     def put(self, num, length):
+        """Put from number and lenght."""
         for i in range(length):
             self.putBit(((num >> (length - i - 1)) & 1) == 1)
 
     def getLengthInBits(self):
+        """Get len in bits of this QR buffer."""
         return self.length
 
     def putBit(self, bit):
+        """Put a Bit."""
         bufIndex = self.length // 8
         if len(self._buffer) <= bufIndex:
             self._buffer.append(0)
@@ -825,9 +904,13 @@ class QRBitBuffer:
 
 
 class MainWindow(QMainWindow):
+
+    """Main window."""
+
     def __init__(self, parent=None):
+        """Init class."""
         super(MainWindow, self).__init__()
-        #self.statusBar().showMessage(__doc__.strip().capitalize())
+        # self.statusBar().showMessage(__doc__.strip().capitalize())
         self.setWindowTitle(__doc__.strip().capitalize())
         self.setMinimumSize(600, 200)
         self.setMaximumSize(800, 400)
@@ -870,8 +953,9 @@ class MainWindow(QMainWindow):
         helpMenu.addAction("About" + __doc__,
                            lambda: QMessageBox.about(self, __doc__, HELP))
         helpMenu.addSeparator()
-        helpMenu.addAction("Keyboard Shortcut", lambda: QMessageBox.information(
-            self, __doc__, "<b>Quit = CTRL + Q"))
+        helpMenu.addAction(
+            "Keyboard Shortcut",
+            lambda: QMessageBox.information(self, __doc__, "<b>Quit = CTRL+Q"))
         helpMenu.addAction("View Source Code",
                            lambda: call('xdg-open ' + __file__, shell=True))
         helpMenu.addAction("View GitHub Repo", lambda: open_new_tab(__url__))
@@ -885,7 +969,7 @@ class MainWindow(QMainWindow):
         container_layout.addWidget(group1)
         # message
         self.message = QLineEdit()
-        self.message.setPlaceholderText(" {} type a message!".format(getuser()))
+        self.message.setPlaceholderText("{} type a message!".format(getuser()))
         self.message.setToolTip("Message Text to encode as QR Code Image")
         QHBoxLayout(group0).addWidget(self.message)
         # options
@@ -914,14 +998,16 @@ class MainWindow(QMainWindow):
         opt_layout.addWidget(QLabel("<b>Error Tolerance"))
         opt_layout.addWidget(self.qrerrorlvl)
         self.bt = QDialogButtonBox(self)
-        self.bt.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Close)
+        self.bt.setStandardButtons(QDialogButtonBox.Ok |
+                                   QDialogButtonBox.Close)
         self.bt.rejected.connect(exit)
         self.bt.accepted.connect(self.run)
         container_layout.addWidget(self.bt)
 
     def run(self):
         """Run the main method and create QR Code."""
-        global BACKGROUND_COLOR, FOREGROUND_COLOR, QRCODE_SIZE, ERRORCORRECT_LVL
+        global BACKGROUND_COLOR, FOREGROUND_COLOR
+        global QRCODE_SIZE, ERRORCORRECT_LVL
         if not len(self.message.text().strip()):
             return
         BACKGROUND_COLOR = str(self.background.currentText()).strip().lower()
@@ -946,7 +1032,7 @@ class MainWindow(QMainWindow):
         return QMessageBox.information(self, __doc__.title(), "<b>" + m)
 
     def center(self):
-        """Center the Window on the Current Screen,with Multi-Monitor support"""
+        """Center Window on the Current Screen,with Multi-Monitor support."""
         window_geometry = self.frameGeometry()
         mousepointer_position = QApplication.desktop().cursor().pos()
         screen = QApplication.desktop().screenNumber(mousepointer_position)
@@ -955,13 +1041,13 @@ class MainWindow(QMainWindow):
         self.move(window_geometry.topLeft())
 
     def move_to_mouse_position(self):
-        """Center the Window on the Current Mouse position"""
+        """Center the Window on the Current Mouse position."""
         window_geometry = self.frameGeometry()
         window_geometry.moveCenter(QApplication.desktop().cursor().pos())
         self.move(window_geometry.topLeft())
 
     def closeEvent(self, event):
-        ' Ask to Quit '
+        """Ask to Quit."""
         the_conditional_is_true = QMessageBox.question(
             self, __doc__.title(), 'Quit ?.', QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No) == QMessageBox.Yes
@@ -972,12 +1058,16 @@ class MainWindow(QMainWindow):
 
 
 def main():
-    ' Main Loop '
+    """Main Loop."""
+    APPNAME = str(__package__ or __doc__)[:99].lower().strip().replace(" ", "")
     try:
-        from os import nice  # isort:skip
-        nice(19)  # windows has no os.nice()
-    except Exception as error:
-        print(error)
+        os.nice(19)  # smooth cpu priority
+        libc = cdll.LoadLibrary('libc.so.6')  # set process name
+        buff = create_string_buffer(len(APPNAME) + 1)
+        buff.value = bytes(APPNAME.encode("utf-8"))
+        libc.prctl(15, byref(buff), 0, 0, 0)
+    except Exception as reason:
+        print(reason)
     application = QApplication(sys.argv)
     application.setStyle('Oxygen')
     application.setApplicationName(__doc__.strip().lower())
@@ -993,10 +1083,10 @@ def main():
             print(''' Usage:
                   -h, --help        Show help informations and exit.
                   -v, --version     Show version information and exit.''')
-            return sys.exit(1)
+            return sys.exit(0)
         elif o in ('-v', '--version'):
             print(__version__)
-            return sys.exit(1)
+            return sys.exit(0)
     mainwindow = MainWindow()
     mainwindow.show()
     sys.exit(application.exec_())
