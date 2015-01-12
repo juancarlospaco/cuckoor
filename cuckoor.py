@@ -18,32 +18,33 @@ __source__ = ('https://raw.githubusercontent.com/juancarlospaco/'
 
 
 # imports
+import logging as log
 import math
 import os
+import signal
 import sys
+import time
+from copy import copy
 from ctypes import byref, cdll, create_string_buffer
+from datetime import datetime
 from getopt import getopt
 from getpass import getuser
-import logging as log
-from copy import copy
 from random import randint
 from subprocess import call
 from urllib import request
 from webbrowser import open_new_tab
-import signal
-import time
-from datetime import datetime
 
 from PIL import Image, ImageDraw
 
+from PyQt5.QtCore import QUrl
 from PyQt5.QtGui import QIcon
 from PyQt5.QtNetwork import (QNetworkAccessManager, QNetworkProxyFactory,
                              QNetworkRequest)
 from PyQt5.QtWidgets import (QApplication, QComboBox, QDialogButtonBox,
                              QFontDialog, QGroupBox, QHBoxLayout, QLabel,
-                             QLineEdit, QMainWindow, QMessageBox, QShortcut,
-                             QSpinBox, QVBoxLayout, QWidget, QProgressDialog)
-
+                             QLineEdit, QMainWindow, QMessageBox,
+                             QProgressDialog, QShortcut, QSpinBox, QVBoxLayout,
+                             QWidget)
 
 HELP = """<h3>Cuckoo-R</h3><b>QR Code App !</b><br>Version {}, licence {}.
 DEV: <a href=https://github.com/juancarlospaco>juancarlospaco</a><br>
