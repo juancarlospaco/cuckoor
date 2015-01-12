@@ -46,6 +46,7 @@ from PyQt5.QtWidgets import (QApplication, QComboBox, QDialogButtonBox,
                              QProgressDialog, QShortcut, QSpinBox, QVBoxLayout,
                              QWidget)
 
+
 HELP = """<h3>Cuckoo-R</h3><b>QR Code App !</b><br>Version {}, licence {}.
 DEV: <a href=https://github.com/juancarlospaco>juancarlospaco</a><br>
 QC: <a href=https://github.com/gilgamezh>gilgamezh</a><br>
@@ -1201,6 +1202,7 @@ def main():
         libc.prctl(15, byref(buff), 0, 0, 0)
     except Exception as reason:
         log.warning(reason)
+    signal.signal(signal.SIGINT, signal.SIG_DFL)  # CTRL+C work to quit app
     application = QApplication(sys.argv)
     application.setStyle('Oxygen')
     application.setApplicationName(__doc__.strip().lower())
